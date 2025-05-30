@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>相对论效应动态演示</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+
+        .controls {
+            margin: 30px 0;
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .slider-group {
+            margin: 15px 0;
+        }
+  
+        
+        .slider-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+ 
+
+        .speed-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 1.1em;
+            color: #007bff;
+            min-width: 50px;
+        }
+
+
+        input[type="range"] {
+            width: 300px;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #0056b3;
+        }
+
+        .chart {
+            height: 400px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+   
+    </style>
+</head>
+
+<body>
+    <div class="container"> 
+        <h1>高速电子相对论效应动态演示</h1>
+
+        <div class="controls">
+            <div class="slider-group">
+                <label class="slider-label">
+                    速度比 β (v/c):
+                    <span class="speed-value" id="betaValue">0.60</span>
+                </label>
+                <input type="range" id="betaSlider" min="0" max="0.99" step="0.01" value="0.6">
+            </div>
+        </div>
+
+        <div id="keChart" class="chart"></div>
+        <div id="pChart" class="chart"></div>
+    </div>
+
+    <script>
+        function initChart(containerId, title, yTitle) {
+            Plotly.newPlot(containerId, [], {
+                title: title,
+                xaxis: { title: '速度 (c)', range: [0, 1] },
+                yaxis: { title: yTitle },
+                showlegend: true,
+                legend: { x: 0.8, y: 0.1 }
+            });
+        }
+    
+
+        
+        initChart('keChart', '动能-速度关系', '动能 (J)');
+        initChart('pChart', '动量-速度关系', '动量 (kg·m/s)');
+     
+        
+        const betaSlider = document.getElementById('betaSlider');
+        const betaValue = document.getElementById('betaValue');
+      
+
+        
+        function updateDisplayAndCharts() {
+            const beta = parseFloat(betaSlider.value).toFixed(2);
+            betaValue.textContent = beta;
+            updateCharts(beta);
+        }
+ 
+
+        betaSlider.addEventListener('input', updateDisplayAndCharts);
+     
+        function updateCharts(beta) {
+            fetch('http://localhost:5000/calculate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ velocity: beta })
+            })
+                .then(response => response.json())
+                .then(data => {
+                 
+                    Plotly.react('keChart', [
+                        {
+                            x: data.speeds,
+                            y: data.classic_k,
+                            name: '经典动能',
+                            line: { color: '#1f77b4', width: 2 }
+                        },
+                        {
+                            x: data.speeds,
+                            y: data.relativ_k,
+                            name: '相对论动能',
+                            line: { color: '#ff7f0e', width: 2 }
+                        },
+                        {
+                            x: [beta],
+                            y: [data.classical_ke],
+                            mode: 'markers+text',
+                            name: '当前值（经典）',
+                            marker: { color: '#2ca02c', size: 12 },
+                            text: [`${(data.classical_ke / 1e-14).toFixed(1)}e-14 J`],
+                            textposition: 'top center'
+                        },
+                        {
+                            x: [beta],
+                            y: [data.relativistic_ke],
+                            mode: 'markers+text',
+                            name: '当前值（相对论）',
+                            marker: { color: '#d62728', size: 12 },
+                            text: [`${(data.relativistic_ke / 1e-14).toFixed(1)}e-14 J`],
+                            textposition: 'bottom center'
+                        }
+                    ], {
+                        title: '动能-速度关系',
+                        xaxis: { title: '速度 (c)' },
+                        yaxis: { title: '动能 (J)' }
+                    });
+
+                 
+                    Plotly.react('pChart', [
+                        {
+                            x: data.speeds,
+                            y: data.classic_p,
+                            name: '经典动量',
+                            line: { color: '#9467bd', width: 2 }
+                        },
+                        {
+                            x: data.speeds,
+                            y: data.relativ_p,
+                            name: '相对论动量',
+                            line: { color: '#8c564b', width: 2 }
+                        },
+                        {
+                            x: [beta],
+                            y: [data.classical_p],
+                            mode: 'markers+text',
+                            name: '当前值（经典）',
+                            marker: { color: '#e377c2', size: 12 },
+                            text: [`${(data.classical_p / 1e-22).toFixed(1)}e-22 kg·m/s`],
+                            textposition: 'top center'
+                        },
+                        {
+                            x: [beta],
+                            y: [data.relativistic_p],
+                            mode: 'markers+text',
+                            name: '当前值（相对论）',
+                            marker: { color: '#7f7f7f', size: 12 },
+                            text: [`${(data.relativistic_p / 1e-22).toFixed(1)}e-22 kg·m/s`],
+                            textposition: 'bottom center'
+                        }
+                    ], {
+                        title: '动量-速度关系',
+                        xaxis: { title: '速度 (c)' },
+                        yaxis: { title: '动量 (kg·m/s)' }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('请求失败，请检查后端连接');
+                });
+        }
+
+      
+        updateDisplayAndCharts();
+    </script>
+</body>
+
+</html>
